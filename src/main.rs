@@ -3,6 +3,7 @@ mod system;
 
 // This is our main Runtime.
 // It accumulates all of the different pallets we want to use.
+#[derive(Debug)]
 pub struct Runtime {
 	system: system::Pallet,
 	balances: balances::Pallet,
@@ -25,8 +26,6 @@ fn main() {
 	/* Set the balance of `alice` to 100, allowing us to execute other transactions. */
 	runtime.balances.set_balance(&alice, 100);
 
-	println!("alice: {}", runtime.balances.balance(&alice));
-
 	// start emulating a block
 	/* Increment the block number in system. */
 	runtime.system.inc_block_number();
@@ -46,9 +45,6 @@ fn main() {
 		.transfer(alice.clone(), bob.clone(), 30)
 		.map_err(|err| eprintln!("{}", err));
 
-	println!("alice: {}", runtime.balances.balance(&alice));
-	println!("bob: {}", runtime.balances.balance(&bob));
-
 	// second transaction
 	/* Increment the nonce of `alice` again. */
 	runtime.system.inc_nonce(&alice);
@@ -58,6 +54,5 @@ fn main() {
 		.transfer(alice.clone(), "charlie".to_string(), 20)
 		.map_err(|err| eprintln!("{}", err));
 
-	println!("alice: {}", runtime.balances.balance(&alice));
-	println!("charlie: {}", runtime.balances.balance(&"charlie".to_string()));
+	println!("{:#?}", runtime);
 }

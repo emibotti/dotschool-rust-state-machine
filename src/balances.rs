@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
 
+type AccountID = String;
+type Balance = u128;
+
 #[derive(Debug)]
 pub struct Pallet {
-	balances: BTreeMap<String, u128>,
+	balances: BTreeMap<AccountID, Balance>,
 }
 
 impl Pallet {
@@ -10,19 +13,19 @@ impl Pallet {
 		Self { balances: BTreeMap::new() }
 	}
 
-	pub fn set_balance(&mut self, who: &String, amount: u128) {
+	pub fn set_balance(&mut self, who: &AccountID, amount: Balance) {
 		self.balances.insert(who.clone(), amount);
 	}
 
-	pub fn balance(&self, who: &String) -> u128 {
+	pub fn balance(&self, who: &AccountID) -> Balance {
 		*self.balances.get(who).unwrap_or(&0)
 	}
 
 	pub fn transfer(
 		&mut self,
-		caller: String,
-		to: String,
-		amount: u128,
+		caller: AccountID,
+		to: AccountID,
+		amount: Balance,
 	) -> Result<(), &'static str> {
 		/*
 			- Get the balance of account `caller`.
@@ -50,22 +53,23 @@ impl Pallet {
 
 #[cfg(test)]
 mod tests {
+	use crate::balances::AccountID;
 
 	#[test]
 	fn init_balances() {
 		let mut balances = super::Pallet::new();
 
 		/* Assert that the balance of `alice` starts at zero. */
-		assert_eq!(balances.balance(&String::from("alice")), 0);
+		assert_eq!(balances.balance(&AccountID::from("alice")), 0);
 
 		/* Set the balance of `alice` to 100. */
-		balances.set_balance(&String::from("alice"), 100);
+		balances.set_balance(&AccountID::from("alice"), 100);
 
 		/* Assert the balance of `alice` is now 100. */
-		assert_eq!(balances.balance(&String::from("alice")), 100);
+		assert_eq!(balances.balance(&AccountID::from("alice")), 100);
 
 		/* Assert the balance of `bob` has not changed and is 0. */
-		assert_eq!(balances.balance(&String::from("bob")), 0);
+		assert_eq!(balances.balance(&AccountID::from("bob")), 0);
 	}
 
 	#[test]
@@ -76,25 +80,25 @@ mod tests {
 			- That the balance of `alice` and `bob` is correctly updated.
 		*/
 		let mut balances = super::Pallet::new();
-		balances.set_balance(&String::from("alice"), 100);
+		balances.set_balance(&AccountID::from("alice"), 100);
 
 		/* Assert the balance of `alice` is now 100. */
-		assert_eq!(balances.balance(&String::from("alice")), 100);
+		assert_eq!(balances.balance(&AccountID::from("alice")), 100);
 
 		/* Assert the balance of `bob` has not changed and is 0. */
-		assert_eq!(balances.balance(&String::from("bob")), 0);
+		assert_eq!(balances.balance(&AccountID::from("bob")), 0);
 
 		assert_eq!(
-			balances.transfer(String::from("alice"), String::from("bob"), 150),
+			balances.transfer(AccountID::from("alice"), AccountID::from("bob"), 150),
 			Result::Err("Not enough funds.")
 		);
 
 		assert_eq!(
-			balances.transfer(String::from("alice"), String::from("bob"), 50),
+			balances.transfer(AccountID::from("alice"), AccountID::from("bob"), 50),
 			Result::Ok(())
 		);
 
-		assert_eq!(balances.balance(&String::from("bob")), 50);
-		assert_eq!(balances.balance(&String::from("alice")), 50);
+		assert_eq!(balances.balance(&AccountID::from("bob")), 50);
+		assert_eq!(balances.balance(&AccountID::from("alice")), 50);
 	}
 }

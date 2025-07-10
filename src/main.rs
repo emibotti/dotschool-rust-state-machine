@@ -124,18 +124,78 @@ fn main() {
 		extrinsics: vec![
 			support::Extrinsic {
 				caller: alice.clone(),
-				call: RuntimeCall::Balances(balances::Call::Transfer { to: bob, amount: 30 }),
+				call: RuntimeCall::Balances(balances::Call::Transfer {
+					to: bob.clone(),
+					amount: 30,
+				}),
 			},
 			support::Extrinsic {
-				caller: alice,
-				call: RuntimeCall::Balances(balances::Call::Transfer { to: charlie, amount: 20 }),
+				caller: alice.clone(),
+				call: RuntimeCall::Balances(balances::Call::Transfer {
+					to: charlie.clone(),
+					amount: 20,
+				}),
+			},
+		],
+	};
+
+	/*
+		Create new block(s) which execute extrinsics for the new `ProofOfExistence` pallet.
+			- Make sure to set the block number correctly.
+			- Feel free to allow some extrinsics to fail, and see the errors appear.
+	*/
+	let block_2 = types::Block {
+		header: support::Header { block_number: 2 },
+		extrinsics: vec![
+			// Succeeds
+			support::Extrinsic {
+				caller: alice.clone(),
+				call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim {
+					claim: &"image.jpg",
+				}),
+			},
+			// Fails, this content is already claimed
+			support::Extrinsic {
+				caller: bob.clone(),
+				call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim {
+					claim: &"image.jpg",
+				}),
+			},
+			// Fails, this content is already claimed
+			support::Extrinsic {
+				caller: charlie.clone(),
+				call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim {
+					claim: &"image.jpg",
+				}),
+			},
+		],
+	};
+
+	let block_3 = types::Block {
+		header: support::Header { block_number: 3 },
+		extrinsics: vec![
+			// Succeeds
+			support::Extrinsic {
+				caller: alice.clone(),
+				call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::RevokeClaim {
+					claim: &"image.jpg",
+				}),
+			},
+			// Succeeds
+			support::Extrinsic {
+				caller: bob.clone(),
+				call: RuntimeCall::ProofOfExistence(proof_of_existence::Call::CreateClaim {
+					claim: &"image.jpg",
+				}),
 			},
 		],
 	};
 
 	// Execute the extrinsics which make up our block.
 	// If there are any errors, our system panics, since we should not execute invalid blocks.
-	runtime.execute_block(block_1).expect("invalid block");
+	runtime.execute_block(block_1).expect("invalid block 1");
+	runtime.execute_block(block_2).expect("invalid block 2");
+	runtime.execute_block(block_3).expect("invalid block 3");
 
 	// Simply print the debug format of our runtime state.
 	println!("{:#?}", runtime);

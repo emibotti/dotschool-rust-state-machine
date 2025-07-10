@@ -6,10 +6,21 @@ mod system;
 // Modules are configured for these types directly, and they satisfy all of our
 // trait requirements.
 mod types {
+	use crate::{RuntimeCall, support};
+
 	pub type AccountId = String;
 	pub type Balance = u128;
 	pub type BlockNumber = u32;
 	pub type Nonce = u32;
+	pub type Extrinsic = support::Extrinsic<AccountId, RuntimeCall>;
+	pub type Header = support::Header<BlockNumber>;
+	pub type Block = support::Block<Header, Extrinsic>;
+}
+
+// These are all the calls which are exposed to the world.
+// Note that it is just an accumulation of the calls exposed by each module.
+pub enum RuntimeCall {
+	// TODO: Not implemented yet.
 }
 
 // This is our main Runtime.

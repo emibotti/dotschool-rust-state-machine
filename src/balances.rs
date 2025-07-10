@@ -1,33 +1,34 @@
 use num::traits::{CheckedAdd, CheckedSub, Zero};
 use std::collections::BTreeMap;
 
-#[derive(Debug)]
-pub struct Pallet<AccountID, Balance> {
-	balances: BTreeMap<AccountID, Balance>,
+pub trait Config {
+	type AccountId: Ord + Clone;
+	type Balance: CheckedAdd + CheckedSub + Zero + Copy;
 }
 
-impl<AccountID, Balance> Pallet<AccountID, Balance>
-where
-	AccountID: Ord + Clone,
-	Balance: CheckedAdd + CheckedSub + Zero + Copy,
-{
+#[derive(Debug)]
+pub struct Pallet<T: Config> {
+	balances: BTreeMap<T::AccountId, T::Balance>,
+}
+
+impl<T: Config> Pallet<T> {
 	pub fn new() -> Self {
 		Self { balances: BTreeMap::new() }
 	}
 
-	pub fn set_balance(&mut self, who: &AccountID, amount: Balance) {
+	pub fn set_balance(&mut self, who: &T::AccountId, amount: T::Balance) {
 		self.balances.insert(who.clone(), amount);
 	}
 
-	pub fn balance(&self, who: &AccountID) -> Balance {
-		*self.balances.get(who).unwrap_or(&Balance::zero())
+	pub fn balance(&self, who: &T::AccountId) -> T::Balance {
+		*self.balances.get(who).unwrap_or(&T::Balance::zero())
 	}
 
 	pub fn transfer(
 		&mut self,
-		caller: AccountID,
-		to: AccountID,
-		amount: Balance,
+		caller: T::AccountId,
+		to: T::AccountId,
+		amount: T::Balance,
 	) -> Result<(), &'static str> {
 		/*
 			- Get the balance of account `caller`.
@@ -55,22 +56,27 @@ where
 
 #[cfg(test)]
 mod tests {
-	type AccountID = String;
+	struct TestConfig;
+
+	impl super::Config for TestConfig {
+		type AccountId = String;
+		type Balance = u128;
+	}
 	#[test]
 	fn init_balances() {
-		let mut balances = super::Pallet::<AccountID, u128>::new();
+		let mut balances = super::Pallet::<TestConfig>::new();
 
 		/* Assert that the balance of `alice` starts at zero. */
-		assert_eq!(balances.balance(&AccountID::from("alice")), 0);
+		assert_eq!(balances.balance(&String::from("alice")), 0);
 
 		/* Set the balance of `alice` to 100. */
-		balances.set_balance(&AccountID::from("alice"), 100);
+		balances.set_balance(&String::from("alice"), 100);
 
 		/* Assert the balance of `alice` is now 100. */
-		assert_eq!(balances.balance(&AccountID::from("alice")), 100);
+		assert_eq!(balances.balance(&String::from("alice")), 100);
 
 		/* Assert the balance of `bob` has not changed and is 0. */
-		assert_eq!(balances.balance(&AccountID::from("bob")), 0);
+		assert_eq!(balances.balance(&String::from("bob")), 0);
 	}
 
 	#[test]
@@ -80,26 +86,26 @@ mod tests {
 			- That `alice` can successfully transfer funds to `bob`.
 			- That the balance of `alice` and `bob` is correctly updated.
 		*/
-		let mut balances = super::Pallet::<AccountID, u128>::new();
-		balances.set_balance(&AccountID::from("alice"), 100);
+		let mut balances = super::Pallet::<TestConfig>::new();
+		balances.set_balance(&String::from("alice"), 100);
 
 		/* Assert the balance of `alice` is now 100. */
-		assert_eq!(balances.balance(&AccountID::from("alice")), 100);
+		assert_eq!(balances.balance(&String::from("alice")), 100);
 
 		/* Assert the balance of `bob` has not changed and is 0. */
-		assert_eq!(balances.balance(&AccountID::from("bob")), 0);
+		assert_eq!(balances.balance(&String::from("bob")), 0);
 
 		assert_eq!(
-			balances.transfer(AccountID::from("alice"), AccountID::from("bob"), 150),
+			balances.transfer(String::from("alice"), String::from("bob"), 150),
 			Result::Err("Not enough funds.")
 		);
 
 		assert_eq!(
-			balances.transfer(AccountID::from("alice"), AccountID::from("bob"), 50),
+			balances.transfer(String::from("alice"), String::from("bob"), 50),
 			Result::Ok(())
 		);
 
-		assert_eq!(balances.balance(&AccountID::from("bob")), 50);
-		assert_eq!(balances.balance(&AccountID::from("alice")), 50);
+		assert_eq!(balances.balance(&String::from("bob")), 50);
+		assert_eq!(balances.balance(&String::from("alice")), 50);
 	}
 }

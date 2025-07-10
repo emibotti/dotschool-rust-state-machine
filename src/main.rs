@@ -5,16 +5,10 @@ mod system;
 // Modules are configured for these types directly, and they satisfy all of our
 // trait requirements.
 mod types {
-	pub type AccountID = String;
+	pub type AccountId = String;
 	pub type Balance = u128;
 	pub type BlockNumber = u32;
 	pub type Nonce = u32;
-}
-
-impl system::Config for Runtime {
-	type AccountId = types::AccountID;
-	type BlockNumber = types::BlockNumber;
-	type Nonce = types::Nonce;
 }
 
 // This is our main Runtime.
@@ -22,7 +16,18 @@ impl system::Config for Runtime {
 #[derive(Debug)]
 pub struct Runtime {
 	system: system::Pallet<Self>,
-	balances: balances::Pallet<types::AccountID, types::Balance>,
+	balances: balances::Pallet<Self>,
+}
+
+impl system::Config for Runtime {
+	type AccountId = types::AccountId;
+	type BlockNumber = types::BlockNumber;
+	type Nonce = types::Nonce;
+}
+
+impl balances::Config for Runtime {
+	type AccountId = types::AccountId;
+	type Balance = types::Balance;
 }
 
 impl Runtime {

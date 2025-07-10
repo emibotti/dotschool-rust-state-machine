@@ -2,27 +2,25 @@ mod balances;
 mod support;
 mod system;
 
-use crate::{support::Dispatch, types::Extrinsic};
+use crate::support::Dispatch;
 
 // These are the concrete types we will use in our simple state machine.
 // Modules are configured for these types directly, and they satisfy all of our
 // trait requirements.
 mod types {
-	use crate::{RuntimeCall, support};
-
 	pub type AccountId = String;
 	pub type Balance = u128;
 	pub type BlockNumber = u32;
 	pub type Nonce = u32;
-	pub type Extrinsic = support::Extrinsic<AccountId, RuntimeCall>;
-	pub type Header = support::Header<BlockNumber>;
-	pub type Block = support::Block<Header, Extrinsic>;
+	pub type Extrinsic = crate::support::Extrinsic<AccountId, crate::RuntimeCall>;
+	pub type Header = crate::support::Header<BlockNumber>;
+	pub type Block = crate::support::Block<Header, Extrinsic>;
 }
 
 // These are all the calls which are exposed to the world.
 // Note that it is just an accumulation of the calls exposed by each module.
 pub enum RuntimeCall {
-	BalancesTransfer { to: types::AccountId, amount: types::Balance },
+	Balances(balances::Call<Runtime>),
 }
 
 // This is our main Runtime.
@@ -51,25 +49,13 @@ impl Runtime {
 
 	// Execute a block of extrinsics. Increments the block number.
 	fn execute_block(&mut self, block: types::Block) -> support::DispatchResult {
-		/*
-			- Increment the system's block number.
-			- Check that the block number of the incoming block matches the current block number,
-			  or return an error.
-			- Iterate over the extrinsics in the block...
-				- Increment the nonce of the caller.
-				- Dispatch the extrinsic using the `caller` and the `call` contained in the extrinsic.
-				- Handle errors from `dispatch` same as we did for individual calls: printing any
-				  error and capturing the result.
-				- You can extend the error message to include information like the block number and
-				  extrinsic number.
-		*/
-
 		self.system.inc_block_number();
 		if block.header.block_number != self.system.block_number() {
-			return Err("Incoming block does not match currect block number");
+			return Err(&"block number does not match what is expected");
 		}
-
-		for (i, types::Extrinsic { call, caller }) in block.extrinsics.into_iter().enumerate() {
+		// An extrinsic error is not enough to trigger the block to be invalid. We capture the
+		// result, and emit an error message if one is emitted.
+		for (i, support::Extrinsic { caller, call }) in block.extrinsics.into_iter().enumerate() {
 			self.system.inc_nonce(&caller);
 			let _res = self.dispatch(caller, call).map_err(|e| {
 				eprintln!(
@@ -95,19 +81,11 @@ impl crate::support::Dispatch for Runtime {
 		caller: Self::Caller,
 		runtime_call: Self::Call,
 	) -> support::DispatchResult {
-		/*
-			Use a match statement to route the `runtime_call` to call the appropriate function in
-			our pallet. In this case, there is only `self.balances.transfer`.
-
-			Your `runtime_call` won't contain the caller information which is needed to make the
-			`transfer` call, but you have that information from the arguments to the `dispatch`
-			function.
-
-			You should propagate any errors from the call back up this function.
-		*/
+		// This match statement will allow us to correctly route `RuntimeCall`s
+		// to the appropriate pallet level function.
 		match runtime_call {
-			RuntimeCall::BalancesTransfer { to, amount } => {
-				self.balances.transfer(caller, to, amount)?;
+			RuntimeCall::Balances(call) => {
+				self.balances.dispatch(caller, call)?;
 			},
 		}
 		Ok(())
@@ -115,35 +93,35 @@ impl crate::support::Dispatch for Runtime {
 }
 
 fn main() {
-	/* Create a mutable variable `runtime`, which is a new instance of `Runtime`. */
+	// Create a new instance of the Runtime.
+	// It will instantiate with it all the modules it uses.
 	let mut runtime = Runtime::new();
-
 	let alice = "alice".to_string();
 	let bob = "bob".to_string();
+	let charlie = "charlie".to_string();
 
-	/* Set the balance of `alice` to 100, allowing us to execute other transactions. */
+	// Initialize the system with some initial balance.
 	runtime.balances.set_balance(&alice, 100);
 
-	/*
-		Replace the logic with a new `Block`.
-			- Set the block number to 1 in the `Header`.
-			- Move your existing transactions into extrinsic format, using the
-			  `Extrinsic` and `RuntimeCall`.
-	*/
+	// Here are the extrinsics in our block.
 	let block_1 = types::Block {
 		header: support::Header { block_number: 1 },
-		extrinsics: vec![Extrinsic {
-			call: RuntimeCall::BalancesTransfer { to: bob.clone(), amount: 30 },
-			caller: alice.clone(),
-		}],
+		extrinsics: vec![
+			support::Extrinsic {
+				caller: alice.clone(),
+				call: RuntimeCall::Balances(balances::Call::Transfer { to: bob, amount: 30 }),
+			},
+			support::Extrinsic {
+				caller: alice,
+				call: RuntimeCall::Balances(balances::Call::Transfer { to: charlie, amount: 20 }),
+			},
+		],
 	};
 
-	/*
-		Use your `runtime` to call the `execute_block` function with your new block.
-		If the `execute_block` function returns an error, you should panic!
-		We `expect` that all the blocks being executed must be valid.
-	*/
+	// Execute the extrinsics which make up our block.
+	// If there are any errors, our system panics, since we should not execute invalid blocks.
 	runtime.execute_block(block_1).expect("invalid block");
 
+	// Simply print the debug format of our runtime state.
 	println!("{:#?}", runtime);
 }

@@ -2,7 +2,7 @@ mod balances;
 mod support;
 mod system;
 
-use crate::support::Dispatch;
+use crate::{support::Dispatch, types::Extrinsic};
 
 // These are the concrete types we will use in our simple state machine.
 // Modules are configured for these types directly, and they satisfy all of our
@@ -124,33 +124,26 @@ fn main() {
 	/* Set the balance of `alice` to 100, allowing us to execute other transactions. */
 	runtime.balances.set_balance(&alice, 100);
 
-	// start emulating a block
-	/* Increment the block number in system. */
-	runtime.system.inc_block_number();
-	/* Assert the block number is what we expect. */
-	assert_eq!(runtime.system.block_number(), 1);
-
-	// first transaction
-	/* Increment the nonce of `alice`. */
-	runtime.system.inc_nonce(&alice);
-	/* Execute a transfer from `alice` to `bob` for 30 tokens.
-		- The transfer _could_ return an error. We should use `map_err` to print
-		  the error if there is one.
-		- We should capture the result of the transfer in an unused variable like `_res`.
+	/*
+		Replace the logic with a new `Block`.
+			- Set the block number to 1 in the `Header`.
+			- Move your existing transactions into extrinsic format, using the
+			  `Extrinsic` and `RuntimeCall`.
 	*/
-	let _res = runtime
-		.balances
-		.transfer(alice.clone(), bob.clone(), 30)
-		.map_err(|err| eprintln!("{}", err));
+	let block_1 = types::Block {
+		header: support::Header { block_number: 1 },
+		extrinsics: vec![Extrinsic {
+			call: RuntimeCall::BalancesTransfer { to: bob.clone(), amount: 30 },
+			caller: alice.clone(),
+		}],
+	};
 
-	// second transaction
-	/* Increment the nonce of `alice` again. */
-	runtime.system.inc_nonce(&alice);
-	/* Execute another balance transfer, this time from `alice` to `charlie` for 20. */
-	let _res = runtime
-		.balances
-		.transfer(alice.clone(), "charlie".to_string(), 20)
-		.map_err(|err| eprintln!("{}", err));
+	/*
+		Use your `runtime` to call the `execute_block` function with your new block.
+		If the `execute_block` function returns an error, you should panic!
+		We `expect` that all the blocks being executed must be valid.
+	*/
+	runtime.execute_block(block_1).expect("invalid block");
 
 	println!("{:#?}", runtime);
 }
